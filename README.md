@@ -1,20 +1,116 @@
-# Introduction 
-TODO: Give a short introduction of your project. Let this section explain the objectives or the motivation behind this project. 
+# Compose sample application
 
-# Getting Started
-TODO: Guide users through getting your code up and running on their own system. In this section you can talk about:
-1.	Installation process
-2.	Software dependencies
-3.	Latest releases
-4.	API references
+## Run locally
 
-# Build and Test
-TODO: Describe and show how to build your code and run the tests. 
+Project structure:
+```
+.
+├── backend
+│   ├── Dockerfile
+│   └── main.go
+├── docker-compose.yml
+├── frontend
+│   ├── Dockerfile
+│   └── nginx.conf
+└── README.md
+```
 
-# Contribute
-TODO: Explain how other users and developers can contribute to make your code better. 
+[_docker-compose.yaml_](docker-compose.yaml)
+```
+version: "3.7"
+services:
+  frontend:
+    build: frontend
+    ports:
+      - 80:80
+    depends_on:
+      - backend
+  backend:
+    build: backend
+```
+The compose file defines an application with two services `frontend` and `backend`.
+When deploying the application, docker-compose maps port 80 of the frontend service container to the same port of the host as specified in the file.
+Make sure port 80 on the host is not already in use.
 
-If you want to learn more about creating good readme files then refer the following [guidelines](https://docs.microsoft.com/en-us/azure/devops/repos/git/create-a-readme?view=azure-devops). You can also seek inspiration from the below readme files:
-- [ASP.NET Core](https://github.com/aspnet/Home)
-- [Visual Studio Code](https://github.com/Microsoft/vscode)
-- [Chakra Core](https://github.com/Microsoft/ChakraCore)
+## Deploy with docker-compose
+
+```
+$ docker-compose up --build -d
+Creating network "nginx-golang_default" with the default driver
+Building backend
+Step 1/7 : FROM golang:1.13 AS build
+1.13: Pulling from library/golang
+...
+Successfully built 4b24f27138cc
+Successfully tagged nginx-golang_frontend:latest
+WARNING: Image for service frontend was built because it did not already exist. To rebuild this image you must use `docker-compose build` or `docker-compose up --build`.
+Creating nginx-golang_backend_1 ... done
+Creating nginx-golang_frontend_1 ... done
+```
+
+## Expected result
+
+Listing containers must show two containers running and the port mapping as below:
+```
+$ docker ps
+CONTAINER ID        IMAGE                   COMMAND                  CREATED             STATUS              PORTS                  NAMES
+8bd5b0d78e73        nginx-golang_frontend   "nginx -g 'daemon of…"   53 seconds ago      Up 52 seconds       0.0.0.0:80->80/tcp     nginx-golang_frontend_1
+56f929c240a0        nginx-golang_backend    "/usr/local/bin/back…"   53 seconds ago      Up 53 seconds                              nginx-golang_backend_1
+```
+
+After the application starts, navigate to `http://localhost:80` in your web browser or run:
+```
+$ curl localhost:80
+
+          ##         .
+    ## ## ##        ==
+ ## ## ## ## ##    ===
+/"""""""""""""""""\___/ ===
+{                       /  ===-
+\______ O           __/
+ \    \         __/
+  \____\_______/
+
+
+Hello from Docker!
+```
+
+Stop and remove the containers
+```
+$ docker-compose down
+```
+
+## Deploy to ACI
+
+Login to azure container registry
+
+```bash
+az acr login --name acrlearningazure
+```
+
+Push images to container registry
+
+```bash
+docker compose push
+```
+
+Login to azure contianer registry with docker CLI
+
+```bash
+docker login acrlearningazure.azurecr.io
+```
+
+> Use username and password from the "Access Keys" section of the ACR
+
+Create docker context for Azure Conteiner Instances. This is needed so we can issue commands from docker CLI to a remote Azure host instead of our local instance.
+
+```bash
+docker context create aci
+docker context use aci
+```
+
+Deploy containers using docker compose. Remember, commands are now issued to a remote host.
+
+```bash
+docker compose up
+```
